@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbobaVPN</title>
+    <!-- Подключение TailwindCSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto flex justify-between items-center py-4 px-6">
+            <h1> <a href="{% url 'home' %}" class="text-3xl font-extrabold text-blue-600">AbobaVPN</a></h1>
+            <nav class="flex items-center space-x-6">
+                <a href="{% url 'home' %}" class="text-gray-700 hover:text-blue-600">Главная</a>
+                <a href="/about/" class="text-gray-700 hover:text-blue-600">О нас</a>
+                <a href="/pricing/" class="text-gray-700 hover:text-blue-600">Тарифы</a>
+                <a href="/contact/" class="text-gray-700 hover:text-blue-600">Контакты</a>
+                {% if user.is_authenticated %}
+                    <div class="relative">
+                        <button onclick="toggleDropdown()" class="text-gray-700 hover:text-blue-600">{{ user.email }}</button>
+                        <div id="dropdownMenu" class="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg hidden">
+                            <a href="{% url 'profile' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Профиль</a>
+                            <a href="{% url 'logout' %}" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Выйти</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="text-gray-700 hover:text-blue-600">Вход</a>
+                    <span class="text-gray-700">/</span>
+                    <a href="{% url 'register' %}" class="text-gray-700 hover:text-blue-600">Регистрация</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="min-h-screen flex flex-col items-center justify-center py-10 bg-white">
+        {% block content %}
+        <!-- Контент дочерних шаблонов будет здесь -->
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-blue-600 text-white py-6">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2025 AbobaVPN. Все права защищены.</p>
+        </div>
+    </footer>
+
+    <!-- Скрипт для выпадающего меню -->
+    <script>
+        function toggleDropdown() {
+            const menu = document.getElementById('dropdownMenu');
+            menu.classList.toggle('hidden');
+        }
+        window.addEventListener('click', function(event) {
+        const purchaseModal = document.getElementById('purchaseModal');
+        if (event.target === purchaseModal) {
+            closeModal('purchaseModal');
+        }
+        const balanceModal = document.getElementById('balanceModal');
+        if (event.target === balanceModal) {
+            closeModal('balanceModal');
+        }
+    });
+    </script>
+</body>
+</html>

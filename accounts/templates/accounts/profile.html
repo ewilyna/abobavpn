@@ -1,0 +1,187 @@
+{% extends "accounts/base.html" %}
+
+{% block content %}
+<div class="container mx-auto my-10 p-5 bg-white shadow-lg rounded-lg">
+    <h1 class="text-3xl font-bold text-blue-600 mb-6">Личный кабинет</h1>
+
+    <div class="mb-4">
+        <h2 class="text-xl font-semibold">Информация о пользователе</h2>
+        <p><strong>Логин:</strong> {{ user.username }}</p>
+        <p><strong>Email:</strong> {{ user.email }}</p>
+        <p><strong>Баланс:</strong> {{ profile.balance|floatformat:2 }} ₽</p>
+        <a href="{% url 'change_password' %}" class="text-blue-600 hover:underline">Сменить пароль</a>
+    </div>
+
+    <div class="mb-6">
+        <h2 class="text-xl font-semibold">Ваши подписки</h2>
+        {% if subscriptions %}
+            <ul class="space-y-4">
+                {% for subscription in subscriptions %}
+                    <li class="p-4 border border-gray-200 rounded-lg">
+                        <h3 class="text-lg font-semibold">{{ subscription.plan.name }}</h3>
+                        <p>Дата окончания: {{ subscription.end_date|date:"d.m.Y" }}</p>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-gray-600">Нет активных подписок.</p>
+        {% endif %}
+    </div>
+
+    <div class="flex justify-end">
+        <a href="javascript:void(0);" onclick="openModal('balanceModal')" class="bg-blue-600 text-white py-2 px-4 rounded-full hover:bg-blue-700 transition duration-300">
+            Пополнить баланс
+        </a>
+    </div>
+
+    <div>
+        <h2 class="text-xl font-semibold mb-4">Доступные подписки</h2>
+        <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for plan in plans %}
+                <li class="p-4 border border-gray-200 rounded-lg text-center">
+                    <h3 class="text-lg font-semibold">{{ plan.name }}</h3>
+                    <p class="text-gray-600">Цена: {{ plan.price|floatformat:2 }} ₽</p>
+                    <p class="text-gray-600">Срок действия: {{ plan.duration_months }} месяцев</p>
+                    <button onclick="showPurchaseModal(
+                        {{ plan.plan_id }},
+                        '{{ plan.name }}',
+                        '{{ plan.description|escapejs }}',
+                        {{ plan.price }},
+                        {{ profile.balance }}
+                    )" class="bg-blue-600 text-white py-2 px-4 rounded-lg mt-4 hover:bg-blue-700">
+                        Купить
+                    </button>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Модальное окно для покупки плана -->
+<div id="purchaseModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full relative">
+        <button onclick="closeModal('purchaseModal')"
+                class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">
+            &times;
+        </button>
+        <h2 id="purchasePlanName" class="text-2xl font-bold mb-4"></h2>
+        <p id="purchasePlanDescription" class="text-gray-700 mb-4"></p>
+        <p><strong>Ваш баланс:</strong> <span id="userBalance"></span> ₽</p>
+        <p><strong>Стоимость плана:</strong> <span id="purchasePlanPrice"></span> ₽</p>
+        <button onclick="confirmPurchase()"
+                class="bg-blue-600 text-white py-2 px-4 rounded-lg mt-4 w-full hover:bg-blue-700">
+            Подтвердить покупку
+        </button>
+        <p id="purchaseError" class="text-red-500 mt-4 hidden"></p>
+    </div>
+</div>
+
+<!-- Модальное окно для пополнения баланса -->
+<div id="balanceModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 hidden">
+    <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full relative">
+        <button onclick="closeModal('balanceModal')"
+                class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">
+            &times;
+        </button>
+        <h2 class="text-2xl font-bold mb-4">Пополнение баланса</h2>
+        <form id="balanceForm" method="POST" action="{% url 'add_balance' %}">
+            {% csrf_token %}
+            <label for="balanceAmount" class="block text-gray-700">Сумма</label>
+            <input type="number" id="balanceAmount" name="amount" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600" required>
+            <button type="submit" class="bg-blue-600 text-white py-2 px-4 rounded-lg w-full mt-4 hover:bg-blue-700">Пополнить</button>
+        </form>
+        <p id="balanceError" class="text-red-500 mt-4 hidden"></p>
+    </div>
+</div>
+
+<script>
+// Обработчик формы пополнения баланса
+    document.getElementById('balanceForm').addEventListener('submit', function(event) {
+        event.preventDefault(); // Отключить стандартное поведение формы
+        const formData = new FormData(this);
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message); // Уведомление об успешной операции
+                closeModal('balanceModal'); // Закрываем окно
+                // Обновляем баланс на странице
+                const balanceElement = document.querySelector('p strong:contains("Баланс:")');
+                if (data.new_balance && balanceElement) {
+                    balanceElement.textContent = `${data.new_balance} ₽`;
+                }
+            } else {
+                // Показываем ошибку
+                document.getElementById('balanceError').textContent = data.message;
+                document.getElementById('balanceError').classList.remove('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            document.getElementById('balanceError').textContent = 'Произошла ошибка. Попробуйте позже.';
+            document.getElementById('balanceError').classList.remove('hidden');
+        });
+    });
+    // Функция открытия модального окна
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+    }
+    let selectedPlanId = null;
+
+    // Открыть модальное окно для покупки
+    function showPurchaseModal(planId, planName, planDescription, planPrice, userBalance) {
+        selectedPlanId = planId;
+        document.getElementById('purchasePlanName').textContent = planName;
+        document.getElementById('purchasePlanDescription').textContent = planDescription;
+        document.getElementById('purchasePlanPrice').textContent = planPrice.toFixed(2);
+        document.getElementById('userBalance').textContent = userBalance.toFixed(2);
+        document.getElementById('purchaseModal').classList.remove('hidden');
+    }
+
+    // Закрыть модальное окно
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+
+    // Подтвердить покупку
+    function confirmPurchase() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        fetch("{% url 'buy_plan' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify({ plan_id: selectedPlanId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                document.getElementById('purchaseError').textContent = data.message;
+                document.getElementById('purchaseError').classList.remove('hidden');
+            }
+        })
+        .catch(error => console.error("Ошибка:", error));
+    }
+
+    // Закрыть модальное окно при клике вне его области
+    window.addEventListener('click', function(event) {
+        const purchaseModal = document.getElementById('purchaseModal');
+        if (event.target === purchaseModal) {
+            closeModal('purchaseModal');
+        }
+        const balanceModal = document.getElementById('balanceModal');
+        if (event.target === balanceModal) {
+            closeModal('balanceModal');
+        }
+    });
+</script>
+{% endblock %}
